@@ -1,0 +1,162 @@
+﻿لإنشاء تطبيق أندرويد يجلب مقالات ووردبريس ولا يخالف شروط متجر جوجل بلاي، يجب أن تركز على نقطتين أساسيتين:
+1. الجانب التقني (الكود): استخدام مكتبات حديثة وآمنة مثل Retrofit لجلب البيانات والتعامل مع واجهة برمجيات ووردبريس الرسمية (WordPress REST API).
+2. شروط جوجل بلاي: المشكلة الأكبر التي تواجه تطبيقات المقالات هي "المحتوى المكرر أو المنسوخ" (Repetitive Content) أو "محتوى المستخدم غير المراقب" (UGC). لكي يقبل جوجل تطبيقك:
+   * يجب أن تملك موقع الووردبريس أو تملك تصريحاً رسمياً بنشر محتواه.
+   * لا تقم بإنشاء تطبيق يعرض فقط موقع الويب داخل WebView (جوجل يرفض هذا غالباً ويبعث رسالة "Spam"). يجب بناء واجهة مستخدم (UI) أصلية (Native).
+إليك كود كامل ومحدث باستخدام Kotlin و Retrofit لعرض المقالات بشكل احترافي وأصلي:
+1. الإعدادات والاعتمادات (Dependencies)
+أضف المكتبات التالية في ملف build.gradle.kts (Module: app):
+
+
+
+
+
+
+Kotlin
+dependencies {
+   // Retrofit لجلب البيانات من الإنترنت
+   implementation("com.squareup.retrofit2:retrofit:2.11.0")
+   implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+   
+   // Coroutines للتعامل مع العمليات الخلفية بالـ Kotlin
+   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+   
+   // Glide لعرض صور المقالات بكفاءة
+   implementation("com.github.bumptech.glide:glide:4.16.0")
+}
+
+ولا تنسَ إضافة صلاحية الإنترنت في ملف AndroidManifest.xml:
+
+
+
+
+
+
+XML
+<uses-permission android:name="android.permission.INTERNET" />
+
+2. تمثيل البيانات (Data Model)
+موقع ووردبريس يعيد البيانات بصيغة JSON. هذا الكلاس يمثل المقالة (سنأخذ العنوان، المحتوى، والرابط وصورة المقالة):
+
+
+
+
+
+
+Kotlin
+import com.google.gson.annotations.SerializedName
+
+data class WordPressPost(
+   val id: Int,
+   val date: String,
+   val link: String,
+   val title: RenderedText,
+   val content: RenderedText,
+   @SerializedName("jetpack_featured_media_url") val featuredImageUrl: String? // واجهة ووردبريس توفر هذا الرابط للصور غالباً
+)
+
+data class RenderedText(
+   val rendered: String
+)
+
+3. واجهة الاتصال (Retrofit API Interface)
+نحدد هنا الدالة التي ستجلب المقالات من الـ API الخاص بووردبريس:
+
+
+
+
+
+
+Kotlin
+import retrofit2.http.GET
+import retrofit2.http.Query
+
+interface WordPressApiService {
+   // جلب آخر 10 مقالات (يمكنك تعديل العدد أو دعم التصفح الصفحي Paging)
+   @GET("wp-json/wp/v2/posts")
+   suspend fun getLatestPosts(
+       @Query("per_page") perPage: Int = 10,
+       @Query("_embed") embed: Boolean = true // لجلب تفاصيل إضافية إن احتجتها
+   ): List<WordPressPost>
+}
+
+4. كائن الإعداد (Retrofit Client)
+قم بإنشاء كائن الـ Retrofit (استبدل yourwebsite.com برابط موقعك الحقيقي):
+
+
+
+
+
+
+Kotlin
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+
+object RetrofitClient {
+   private const val BASE_URL = "https://yourwebsite.com/" // ضع رابط موقعك هنا مع إبقاء الشرطة المائلة في النهاية
+
+   val apiService: WordPressApiService by lazy {
+       Retrofit.Builder()
+           .baseUrl(BASE_URL)
+           .addConverterFactory(GsonConverterFactory.create())
+           .build()
+           .create(WordPressApiService::class.java)
+   }
+}
+
+5. جلب البيانات في الـ Activity أو ViewModel
+هنا نقوم باستدعاء الكود وعرض المقالات (مثال مبسط داخل الـ Activity باستخدام الـ Coroutines):
+
+
+
+
+
+
+Kotlin
+import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class MainActivity : AppCompatActivity() {
+
+   override fun onCreate(savedInstanceState: Bundle?) {
+       super.onCreate(savedInstanceState: Bundle?)
+       setContentView(R.layout.activity_main)
+
+       // جلب المقالات في الخلفية
+       fetchWordPressPosts()
+   }
+
+   private fun fetchWordPressPosts() {
+       lifecycleScope.launch(Dispatchers.IO) {
+           try {
+               val posts = RetrofitClient.apiService.getLatestPosts()
+               
+               withContext(Dispatchers.Main) {
+                   // هنا نقوم بتمرير قائمة المقالات (posts) إلى الـ Adapter الخاص بالـ RecyclerView لعرضها
+                   setupRecyclerView(posts)
+               }
+           } catch (e: Exception) {
+               withContext(Dispatchers.Main) {
+                   Log.e("API_ERROR", "حدث خطأ أثناء جلب البيانات: ${e.message}")
+                   Toast.makeText(this@MainActivity, "فشل الاتصال بالموقع", Toast.LENGTH_LONG).show()
+               }
+           }
+       }
+   }
+
+   private fun setupRecyclerView(posts: List<WordPressPost>) {
+       // كود ربط البيانات بالـ RecyclerView الخاص بك وعرضها للمستخدم
+       // نصيحة: استخدم Html.fromHtml(post.title.rendered, Html.FROM_HTML_MODE_LEGACY) لتنظيف النص من وسم الـ HTML
+   }
+}
+
+💡 نصائح ذهبية لتجنب الحظر في جوجل بلاي (Google Play Policy):
+1. حقوق الملكية الفكرية (Intellectual Property): إذا كان الموقع لشخص آخر، سيطلب منك جوجل إثبات ملكية أو تصريح (خيار "Advance Notice" في كونسول جوجل). يفضل دائماً أن يكون الموقع تابعاً لك أو لعميلك بشكل رسمي.
+2. توفير سياسة الخصوصية (Privacy Policy): يجب وضع رابط لسياسة الخصوصية داخل التطبيق وفي صفحة المتجر، يوضح أن التطبيق يجلب مقالات عامة ولا يجمع بيانات المستخدمين دون إذنهم.
+3. عرض المقالة كاملة (WebView Customization): عند الضغط على المقالة لفتحها كاملة، يفضل عرضها داخل التطبيق عبر WebView مخصص ينظف الإعلانات المزعجة، أو استخدام Custom Tabs من جوجل لفتح الرابط الأصلي، فهذا يعطي تجربة مستخدم ممتازة ولا يعتبره جوجل "تطبيقاً مكرراً".
