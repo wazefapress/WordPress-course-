@@ -1,0 +1,110 @@
+﻿إنشاء إضافة نظام إدارة تعليمي (LMS) مبسط لـ WordPress هو طريقة رائعة لفهم كيفية عمل الإضافات والتعامل مع قاعدة البيانات وتخصيص لوحة التحكم.
+سنقوم هنا بإنشاء إضافة بسيطة جدًا تقوم بإنشاء نوع منشور مخصص (Custom Post Type) باسم "الدروس" (Lessons)، بحيث يمكنك إضافة دروس وإظهارها للمستخدمين.
+1. كود الإضافة الكامل (simple-lms.php)
+قم بإنشاء ملف جديد باسم simple-lms.php داخل مجلد جديد تسميه simple-lms وضعه في مسار الإضافات wp-content/plugins/. ثم ضع فيه الكود التالي:
+
+
+
+
+
+
+PHP
+<?php
+/**
+* Plugin Name: Simple LMS
+* Description: إضافة بسيطة لإنشاء وإدارة الدروس التعليمية في ووردبريس.
+* Version: 1.0
+* Author: AI Assistant
+*/
+
+// حماية الملف من الوصول المباشر
+if ( ! defined( 'ABSPATH' ) ) {
+   exit;
+}
+
+// 1. تسجيل نوع المنشور المخصص (الدروس)
+function slms_register_lessons_cpt() {
+   $labels = array(
+       'name'               => 'الدروس',
+       'singular_name'      => 'درس',
+       'menu_name'          => 'Simple LMS',
+       'add_new'            => 'أضف درسًا جديدًا',
+       'add_new_item'       => 'إضافة درس جديد',
+       'edit_item'          => 'تعديل الدرس',
+       'new_item'           => 'درس جديد',
+       'view_item'          => 'عرض الدرس',
+       'search_items'       => 'البحث عن دروس',
+       'not_found'          => 'لم يتم العثور على دروس',
+       'not_found_in_trash' => 'السلة فارغة',
+   );
+
+   $args = array(
+       'labels'             => $labels,
+       'public'             => true,
+       'has_archive'        => true,
+       'menu_icon'          => 'dashicons-welcome-learn-more', // أيقونة قبعة التخرج
+       'supports'           => array( 'title', 'editor', 'thumbnail' ),
+       'rewrite'            => array( 'slug' => 'lessons' ),
+       'show_in_rest'       => true, // لتفعيل محرر المكونات الجديد Gutenberg
+   );
+
+   register_post_type( 'lesson', $args );
+}
+add_action( 'init', 'slms_register_lessons_cpt' );
+
+
+// 2. إضافة رمز قصير (Shortcode) لعرض قائمة الدروس في أي صفحة
+function slms_lessons_list_shortcode() {
+   $args = array(
+       'post_type'      => 'lesson',
+       'posts_per_page' => -1, // عرض جميع الدروس
+       'post_status'    => 'publish'
+   );
+
+   $query = new WP_Query( $args );
+   $output = '<div class="slms-lessons-list" style="margin-top: 20px;">';
+
+   if ( $query->have_posts() ) {
+       $output .= '<ul style="list-style: none; padding: 0;">';
+       while ( $query->have_posts() ) {
+           $query->the_post();
+           $output .= '<li style="margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">';
+           $output .= '<h3 style="margin: 0 0 10px 0;"><a href="' . get_permalink() . '">' . get_the_title() . '</a></h3>';
+           $output .= '<p style="margin: 0; color: #666;">' . wp_trim_words( get_the_excerpt(), 20 ) . '</p>';
+           $output .= '</li>';
+       }
+       $output .= '</ul>';
+       wp_reset_postdata();
+   } else {
+       $output .= '<p>لا توجد دروس متاحة حالياً.</p>';
+   }
+
+   $output .= '</div>';
+   return $output;
+}
+add_shortcode( 'simple_lms_lessons', 'slms_lessons_list_shortcode' );
+
+2. شرح الكود خطوة بخطوة
+تم تقسيم الكود إلى ثلاثة أقسام رئيسية لتسهيل فهمه:
+أ. ترويسة الإضافة (Plugin Header)
+تبدأ الإضافة بتعليق PHP تعريفي (/ ... */). هذا الجزء إجباري ليتمكن ووردبريس من التعرف على الملف كإضافة وتفعيلها من لوحة التحكم. يحتوي على اسم الإضافة، الوصف، والإصدار.
+ب. تسجيل نوع المنشور المخصص (register_post_type)
+بشكل افتراضي، يحتوي ووردبريس على (المقالات والصفحات). نحن بحاجة إلى نوع خاص بالدروس:
+* استخدمنا الدالة register_post_type لإنشاء نوع جديد باسم lesson.
+* المصفوفة $labels تحدد الكلمات التي تظهر في لوحة التحكم (مثل: "أضف درسًا جديدًا").
+* المصفوفة $args تحدد خصائص هذا النوع:
+   * 'public' => true: ليظهر للزوار.
+   * 'menu_icon': اخترنا أيقونة dashicons-welcome-learn-more (أيقونة قبعة التخرج المميزة للتعليم).
+   * 'supports': حددنا أن الدرس يحتوي على عنوان، ومحرر نصوص، وصورة بارزة.
+* ربطنا الدالة بـ الحُطّاف (Hook) المسمى init عبر add_action.
+ج. الرمز القصير (Shortcode)
+نريد طريقة لعرض جميع الدروس في صفحة واحدة للمستفيدين:
+* أنشأنا دالة slms_lessons_list_shortcode تقوم بعمل استعلام لقاعدة البيانات (WP_Query) لجلب كل المنشورات التي نوعها lesson.
+* تقوم الدالة بالمرور على الدروس وعمل حلقة تكرار لتنسيقها داخل قائمة <ul> بسيطة مع إظهار العنوان كرابط يفتح الدرس، وجزء بسيط من المحتوى.
+* ربطنا هذه الدالة بالرمز القصير عبر add_shortcode.
+3. طريقة الاستخدام
+1. بعد حفظ الملف في المجلد المذكور، اذهب إلى لوحة تحكم ووردبريس > الإضافات (Plugins).
+2. ستجد إضافة باسم Simple LMS، قم بالضغط على تفعيل (Activate).
+3. ستلاحظ ظهور تبويب جديد في القائمة الجانبية باسم Simple LMS (أو الدروس). قم بالدخول إليه وإضافة بعض الدروس التجريبية.
+4. لعرض هذه الدروس في أي صفحة أو مقال، ما عليك سوى كتابة الرمز القصير التالي داخل المحرر:
+[simple_lms_lessons]
