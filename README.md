@@ -1,3 +1,5 @@
+
+<img width="1054" height="1492" alt="WordPress" src="https://github.com/user-attachments/assets/4dc43e0a-3a80-48c1-8853-aeb0ec01394f" />
 # WordPress-course-
     احتراف ووردبريس: من الصفر إلى مطور مواقع مستقل
 🚀 احتراف ووردبريس: من الصفر إلى مطور مواقع مستقل
