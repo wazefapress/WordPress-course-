@@ -1,5 +1,6 @@
 
 <img width="1054" height="1492" alt="WordPress" src="https://github.com/user-attachments/assets/4dc43e0a-3a80-48c1-8853-aeb0ec01394f" />
+ملاحظة: الأكواد في هذا الكورس موجودة في الملفات المرفقة على الرابط https://www.patreon.com/posts/162877389
 # WordPress-course-
     احتراف ووردبريس: من الصفر إلى مطور مواقع مستقل
 🚀 احتراف ووردبريس: من الصفر إلى مطور مواقع مستقل
